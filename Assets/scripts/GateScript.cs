@@ -4,31 +4,22 @@ using System.Collections;
 public class GateScript : MonoBehaviour {
 
     public bool growing = true;
-    //public MainScript mainScript;
-    //public Vector3 pos;
+    public GameObject firstLink = null;
+    public GameObject nextLink = null;
+    public bool locked = false;
     
     void Start() {
-        //mainScript = GameObject.Find("Main Camera").GetComponent<MainScript>();
     }
     
     void Update() {
     }
 
-    /*
     void OnCollisionEnter2D(Collision2D coll) {
-        //if (coll.gameObject.name
-        Debug.Log (coll.gameObject.name);
-        if (!locked) {
-            //Destroy(gameObject);
-            //mainScript.gateExists.Remove(pos);
-        }
-    }*/
-
-    void OnTriggerEnter2D(Collider2D other) {
-        if (other.gameObject.name == "Wall") {
-            growing = false;
-        } else { // ball hit
-            Destroy(gameObject);
+        GameObject curr = gameObject.GetComponent<GateScript>().firstLink;
+        while (curr != null && !curr.GetComponent<GateScript>().locked) {
+            Destroy(curr);
+            curr = curr.GetComponent<GateScript>().nextLink;
         }
     }
+
 }

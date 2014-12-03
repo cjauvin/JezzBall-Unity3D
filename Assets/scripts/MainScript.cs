@@ -7,14 +7,12 @@ public class MainScript : MonoBehaviour {
     public GameObject ball;
     public GameObject gate;
     public GameObject back;
-    //public GameObject pointer;
     public Dictionary<Vector3, bool> gateExists;
     public int N;
 
     void Start() {
         back = GameObject.Find("Back");
         N = (int)back.transform.localScale.x / 2;
-        //pointer = GameObject.Find("Pointer");
         for(int i = 0; i < 10; i++) {
             Vector2 p = new Vector2(Random.Range(-(N-5), N-5), 
                                     Random.Range(-(N-5), N-5));
@@ -33,64 +31,66 @@ public class MainScript : MonoBehaviour {
             btn = 2;
         }
         if (btn > 0) {
-            RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), Vector2.zero);    
+            RaycastHit2D hit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint(Input.mousePosition), 
+                                                 Vector2.zero);    
             if (hit.collider != null) {
-                Vector3 dir = (btn == 1) ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
-                /*
-                GameObject g1 = (GameObject)Instantiate(gate, hit.centroid, Quaternion.identity);
-                g1.renderer.material.color = Color.blue;
-                StartCoroutine(LaunchGate(g1, dir, -1)); */
-                GameObject g2 = (GameObject)Instantiate(gate, hit.centroid, Quaternion.identity);
-                g2.renderer.material.color = Color.red;
-                StartCoroutine(LaunchGate(g2, dir, 1));
+                if (btn == 1) {
+                    StartCoroutine(LaunchGate(hit.centroid, Vector2.right, Color.blue));
+                    StartCoroutine(LaunchGate(hit.centroid, -Vector2.right, Color.red));
+                } else {
+                    StartCoroutine(LaunchGate(hit.centroid, Vector2.up, Color.blue));
+                    StartCoroutine(LaunchGate(hit.centroid, -Vector2.up, Color.red));
+                }
             }
-        }
-        /*
-        // is on either left/right vertical walls
-        Vector3 pos = pointer.transform.position;
-        bool isVertical = (Mathf.Abs(pos.x) == N);
-        // is on either top/bottom horizontal walls
-        bool isHorizontal = (Mathf.Abs(pos.y) == N);
-        if (Input.GetKey(KeyCode.LeftArrow) && pos.x > -N && isHorizontal) {
-            pointer.transform.Translate(-1, 0, 0);
-        } else if (Input.GetKey(KeyCode.RightArrow) && pos.x < N && isHorizontal) {
-               pointer.transform.Translate(1, 0, 0);
-        } else if (Input.GetKey(KeyCode.UpArrow) && pos.y < N && isVertical) {
-            pointer.transform.Translate(0, 1, 0);
-        } else if (Input.GetKey(KeyCode.DownArrow) && pos.y > -N && isVertical) {
-            pointer.transform.Translate(0, -1, 0);
-        }
-        if (Input.GetKeyDown(KeyCode.Space)) {
-            bool allowed = (((isVertical && Mathf.Abs(pos.y) != N) || 
-                              (isHorizontal && Mathf.Abs(pos.x) != N)) &&
-                            !gateExists.ContainsKey(pos));
-            if (allowed) {
-                GameObject g = (GameObject)Instantiate(gate, pos, Quaternion.identity);
-                Vector3 dir = isVertical ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
-                int invert = ((isVertical && pos.x == N) || (isHorizontal && pos.y == N)) ? -1 : 1;
-                gateExists.Add(pos, true);
-                g.GetComponent<GateScript>().pos = pos;
-                StartCoroutine(LaunchGate(g, dir, invert));
-            }
-        }*/
-    }
-    
-    IEnumerator LaunchGate(GameObject g, Vector3 dir, int invert) {
-        bool is_vertical = (dir.x == 1);
-        float p0 = is_vertical ? g.transform.position.x : g.transform.position.y;
-        Vector3 p = g.transform.position;
-        p0 *= invert;
-        //while (g && p0 + (is_vertical ? g.transform.localScale.x : g.transform.localScale.y) < N) {
-        while (g && g.GetComponent<GateScript>().growing) {
-            Vector3 v = dir * invert;
-            RaycastHit2D hit = Physics2D.Raycast(p, Vector2.right);
-            if (hit && hit.collider.gameObject.name == "Wall") {
-                Debug.Log (hit.point.x);
-            }
-            g.transform.localScale += dir;
-            g.transform.Translate((dir * invert) / 2);
-            yield return new WaitForSeconds(.01f);
         }
     }
-    
+
+    IEnumerator LaunchGate(Vector3 pos, Vector2 dir, Color color) {
+        Vector2 p = new Vector2(Mathf.Round(pos.x),
+                                Mathf.Round(pos.y));
+        if (dir == Vector2.right) {
+            p -= Vector2.right;
+        } else if (dir == Vector2.up) {
+            p -= Vector2.up;
+        }
+        List<GameObject> gateLinks = new List<GameObject>();
+        while (true) {
+            p += dir;
+            Collider2D[] colls = Physics2D.OverlapPointAll(p);
+            if (colls.Length == 0) {
+                // outside the back plane
+                break;
+            } else if (colls.Length > 1) {
+                // back plane + wall or ball 
+                foreach (Collider2D coll in colls) {
+                    if (coll.gameObject.name == "Ball(Clone)") {
+                        foreach (GameObject gl in gateLinks) {
+                            Destroy(gl);
+                        }
+                    }    
+                }
+                foreach (GameObject gl in gateLinks) {
+                    if (gl) {
+                        gl.GetComponent<GateScript>().locked = true;
+                    }
+                }
+                break;
+            }
+            GameObject g = (GameObject)Instantiate(gate, p, Quaternion.identity);
+            g.renderer.material.color = color;
+            gateLinks.Add(g);
+            g.GetComponent<GateScript>().firstLink = gateLinks[0];
+            if (g != gateLinks[0]) {
+                if (gateLinks[gateLinks.Count-2] != null) {
+                    gateLinks[gateLinks.Count-2].GetComponent<GateScript>().nextLink = g;
+                } else {
+                    Destroy(g);
+                    break;
+                }
+            }
+            yield return new WaitForSeconds(0.001f);
+        }
+        gateLinks.Clear();
+    }
+
 }
