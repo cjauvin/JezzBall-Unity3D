@@ -3,7 +3,6 @@ using System.Collections;
 
 public class GateScript : MonoBehaviour {
 
-    public bool growing = true;
     public GameObject firstLink = null;
     public GameObject nextLink = null;
     public bool locked = false;
